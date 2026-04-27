@@ -18,20 +18,19 @@ namespace Frank
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
 
+            // Gère le multiscreen
             var state = new AppState();
-
             foreach (var screen in Screen.AllScreens)
             {
-                System.Diagnostics.Debug.WriteLine(screen);
+                // Sur chaques fenêtre on crée une nouvelle instance de Frank
                 var form = new Frank(state);
-
                 form.StartPosition = FormStartPosition.Manual;
                 form.Location = screen.WorkingArea.Location;
                 form.Size = screen.WorkingArea.Size;
-                OpenForms.Add(form);
+                OpenForms.Add(form); // Ajoute un historique des fenêtres ouvertes
                 form.Show();
             }
-            Application.Run();
+            Application.Run(); // lance l'application
         }
 
         public static void CleanCloseAll()
@@ -39,17 +38,22 @@ namespace Frank
             if (_isClosing) return;
             _isClosing = true;
 
+            Keyboard.EnableKeyboard();
+
             foreach(var form in OpenForms)
             {
+                // Cache la fenêtre parent et stop les timers
                 form.Hide();
                 form.StopTimers();
             }
 
+            // Cherche parmis l'historique, la fenêtre définit comme étant principale par le système
             var primaryForm = OpenForms.FirstOrDefault(f => Screen.FromControl(f).Primary);
 
+            // Affiche un petit message
             MessageBox.Show(primaryForm, "T'as de la chance cette fois ci, c'était pas un vrai virus...\n\nLa prochaine fois pense a verrouiller ton pc :)", "ATTENTION", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-            Application.Exit();
+            Application.Exit(); // Quite le programme
         }
     }
 }

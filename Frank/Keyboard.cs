@@ -2,13 +2,16 @@
 
 public static class Keyboard
 {
+    // Type de hook pour intercepter globalement toutes les touches du clavier
     private const int WH_KEYBOARD_LL = 13;
 
+    // Appuis et relachement de touches
     private const int WM_KEYDOWN = 0x0100;
     private const int WM_KEYUP = 0x0101;
     private const int WM_SYSKEYDOWN = 0x0104;
     private const int WM_SYSKEYUP = 0x0105;
 
+    // Pour le alt tab
     private const int VK_MENU = 0x12;
     private const int VK_TAB = 0x09;
 
@@ -21,6 +24,7 @@ public static class Keyboard
         IntPtr lParam
     );
 
+    // Structure native de windows avec toutes les informations sur la touche pressé
     [StructLayout(LayoutKind.Sequential)]
     private struct KBDLLHOOKSTRUCT
     {
@@ -31,6 +35,7 @@ public static class Keyboard
         public IntPtr dwExtraInfo;
     }
 
+    // Fonctions Win32 utilisées pour installé, retirer et chaîner le hook du clavier
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
 
@@ -46,13 +51,16 @@ public static class Keyboard
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
 
+    // Watchdog pour réinstaller le hook si il disparait
     private static System.Threading.Timer? watchdog;
 
     public static void DisableKeyboard()
     {
+        // Pour ne pas installer plusieurs fois le même hook
         if (hookHandle != IntPtr.Zero) return;
         InstallHook();
 
+        // Vérifie régulièrement si me hook est toujours actif
         watchdog = new System.Threading.Timer(_ => { 
             if (hookHandle == IntPtr.Zero) InstallHook();
         }, null, 500, 500);
@@ -60,32 +68,34 @@ public static class Keyboard
 
     public static void EnableKeyboard()
     {
+        // Arrêt de la surveillance
         watchdog?.Dispose();
         watchdog = null;
 
         if (hookHandle == IntPtr.Zero) return;
-        UnhookWindowsHookEx(hookHandle);
+        UnhookWindowsHookEx(hookHandle); // Réstauration des touches
         hookHandle = IntPtr.Zero;
     }
 
     public static void InstallHook()
     {
+        // Installe un hook clavier
         hookHandle = SetWindowsHookEx(WH_KEYBOARD_LL, hookCallback, GetModuleHandle(null), 0);
     }
 
     private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0)
+        if (nCode >= 0) // Indique que l'événement peut être traité
         {
-            KBDLLHOOKSTRUCT keyInfo =
-                Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+            KBDLLHOOKSTRUCT keyInfo = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
 
+            // Si alt est maintenu
             bool altDown = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
 
             // Bloque Alt + Tab
             if (keyInfo.vkCode == VK_TAB && altDown) return (IntPtr)1;
 
-            // Bloque toutes les touches normales
+            // Bloque appuie et relachement des touches classiques
             if (wParam == (IntPtr)WM_KEYDOWN ||
                 wParam == (IntPtr)WM_KEYUP ||
                 wParam == (IntPtr)WM_SYSKEYDOWN ||

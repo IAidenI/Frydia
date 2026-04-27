@@ -2,10 +2,10 @@
 
 namespace Frank
 {
+    // Permet de gèrer le multiscreen
     public class AppState : INotifyPropertyChanged
     {
         private string _message = "";
-
         public string Message
         {
             get => _message;
