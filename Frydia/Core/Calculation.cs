@@ -49,9 +49,9 @@ namespace Frank.Core
             return BitConverter.ToUInt32(h, 0);
         }
 
-        private UInt32 Cipher(UInt32 input)
+        private UInt32 Cipher(Int32 input)
         {
-            UInt32 x = input;
+            UInt32 x = unchecked((UInt32)input);
             x ^= this._runtimeKey;
             x = (x << 7) | (x >> 25);
             x += 0X41424344;
@@ -59,9 +59,9 @@ namespace Frank.Core
             return x;
         }
 
-        public bool CheckEmergency(UInt32 input)
+        private bool CheckEmergency(decimal input)
         {
-            return this.Cipher(input) == 0x9ba813e4; // Code secret : 0xcafebabe en cas d'urgence
+            return this.Cipher(Decimal.ToInt32(input)) == 0x180522fe; // Code secret : -8000 en cas d'urgence
         }
 
         public string Generate()
@@ -137,7 +137,7 @@ namespace Frank.Core
 
         public decimal GetResult()
         {
-            return this._pattern switch
+            decimal result = this._pattern switch
             {
                 Patterns.Pomni => ((((this._a + this._b) * 68741m) - this._c) + ((this._d - this._e) * this._f)) - 1m,
                 Patterns.Jax => (this._a / (this._b * (this._b + (this._b * (this._b + this._b))))) + ((this._c * this._c * this._c * this._c * this._c) * (this._d + this._d)),
@@ -146,11 +146,12 @@ namespace Frank.Core
                 Patterns.Kinger => ((((this._a + this._b) - this._c) * 2m) + ((this._d - (this._r * 3m)) * this._f)) - ((this._g + 1m) * (this._h + 2m)),
                 _ => 0m
             };
+            return Math.Round(result, 2);
         }
 
         public bool CheckResult(decimal userValue)
         {
-            return this.GetResult() == userValue || this.CheckEmergency(Decimal.ToUInt32(userValue));
+            return this.GetResult() == userValue || this.CheckEmergency(Decimal.ToInt32(userValue));
         }
     }
 }

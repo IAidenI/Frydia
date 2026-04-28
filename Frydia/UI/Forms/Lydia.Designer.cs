@@ -36,11 +36,12 @@
             timerSpy = new System.Windows.Forms.Timer(components);
             timerMove = new System.Windows.Forms.Timer(components);
             lblInfo = new Label();
+            timerClipboard = new System.Windows.Forms.Timer(components);
             SuspendLayout();
             // 
             // tbUser
             // 
-            tbUser.Location = new Point(292, 199);
+            tbUser.Location = new Point(292, 240);
             tbUser.Name = "tbUser";
             tbUser.PlaceholderText = "Saisir le résultat";
             tbUser.Size = new Size(206, 23);
@@ -50,17 +51,18 @@
             // lblTitle
             // 
             lblTitle.AutoSize = true;
-            lblTitle.Location = new Point(292, 82);
+            lblTitle.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            lblTitle.Location = new Point(245, 136);
             lblTitle.Name = "lblTitle";
-            lblTitle.Size = new Size(217, 15);
+            lblTitle.Size = new Size(315, 21);
             lblTitle.TabIndex = 2;
             lblTitle.Text = "Punition : Vous devez résoudre ce calcul";
             // 
             // btnValidate
             // 
-            btnValidate.Location = new Point(516, 199);
+            btnValidate.Location = new Point(516, 240);
             btnValidate.Name = "btnValidate";
-            btnValidate.Size = new Size(75, 23);
+            btnValidate.Size = new Size(75, 24);
             btnValidate.TabIndex = 3;
             btnValidate.Text = "Valider";
             btnValidate.UseVisualStyleBackColor = true;
@@ -69,13 +71,12 @@
             // tbCalcul
             // 
             tbCalcul.BorderStyle = BorderStyle.None;
-            tbCalcul.Location = new Point(187, 128);
+            tbCalcul.Location = new Point(184, 195);
             tbCalcul.Name = "tbCalcul";
             tbCalcul.ReadOnly = true;
             tbCalcul.Size = new Size(151, 16);
             tbCalcul.TabIndex = 4;
             tbCalcul.Text = "Calcul";
-            tbCalcul.KeyDown += tbCalcul_KeyDown;
             // 
             // timerSpy
             // 
@@ -90,11 +91,16 @@
             // lblInfo
             // 
             lblInfo.AutoSize = true;
-            lblInfo.Location = new Point(284, 328);
+            lblInfo.Location = new Point(284, 342);
             lblInfo.Name = "lblInfo";
             lblInfo.Size = new Size(28, 15);
             lblInfo.TabIndex = 5;
             lblInfo.Text = "Info";
+            // 
+            // timerClipboard
+            // 
+            timerClipboard.Enabled = true;
+            timerClipboard.Tick += timerClipboard_Tick;
             // 
             // Lydia
             // 
@@ -127,5 +133,6 @@
         private System.Windows.Forms.Timer timerSpy;
         private System.Windows.Forms.Timer timerMove;
         private Label lblInfo;
+        private System.Windows.Forms.Timer timerClipboard;
     }
 }

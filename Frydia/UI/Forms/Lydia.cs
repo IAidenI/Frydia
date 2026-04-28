@@ -23,6 +23,7 @@ namespace Frank
         private bool _excelFound = false;
         private bool _snippingToolFound = false;
         private bool _closing = false;
+        private string _lastClipboard = "";
 
         private Dictionary<IntPtr, Rectangle> _processCalc = new();
         private Dictionary<IntPtr, Hide> _hideForms = new();
@@ -79,6 +80,13 @@ namespace Frank
         {
             this.tbCalcul.Text = this._calcul.Generate();
             this.AutoResizeTextBox(this.tbCalcul);
+
+            // Centre les composents en X
+            this.lblTitle.Location = new Point((this.ClientSize.Width - this.lblTitle.Width) / 2, this.lblTitle.Location.Y);
+            this.tbCalcul.Location = new Point((this.ClientSize.Width - this.tbCalcul.Width) / 2, this.tbCalcul.Location.Y);
+            this.tbUser.Location = new Point((this.ClientSize.Width - this.tbUser.Width) / 2, this.tbUser.Location.Y);
+            this.btnValidate.Location = new Point(this.tbUser.Location.X + this.tbUser.Width + 10, this.btnValidate.Location.Y);
+
 
             this.CenterToScreen();
 
@@ -138,7 +146,7 @@ namespace Frank
                 this.tbCalcul.Text = this._calcul.Generate();
                 Debug.WriteLine(this.tbCalcul.Text);
                 Debug.WriteLine(this._calcul.GetResult());
-                
+
                 // Resets
                 this._excelFound = false;
                 this._snippingToolFound = false;
@@ -173,15 +181,6 @@ namespace Frank
             if (e.Control && e.KeyCode == Keys.V)
             {
                 this.tbUser.Text = "Oukilé le texte ?";
-                e.SuppressKeyPress = true;
-            }
-        }
-
-        private void tbCalcul_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Control && e.KeyCode == Keys.C)
-            {
-                Clipboard.SetText("Tu ne pensais pas que ça serait si simple quand même :)");
                 e.SuppressKeyPress = true;
             }
         }
@@ -306,6 +305,19 @@ namespace Frank
         {
             base.OnShown(e);
             SetWindowDisplayAffinity(this.Handle, _WDA_EXCLUDEFROMCAPTURE);
+        }
+
+        private void timerClipboard_Tick(object sender, EventArgs e)
+        {
+            if (!Clipboard.ContainsText()) return;
+
+            string current = Clipboard.GetText();
+
+            if (current != this._lastClipboard)
+            {
+                this._lastClipboard = current;
+                Clipboard.SetText("Tu ne pensais pas que ça serait si simple quand même :)");
+            }
         }
     }
 }
