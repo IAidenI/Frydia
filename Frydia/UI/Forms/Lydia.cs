@@ -1,16 +1,16 @@
 ﻿using Frank.Core;
 using Frydia.Utils;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar;
 
 namespace Frank
 {
     public partial class Lydia : Form
     {
-        [DllImport("user32.dll")]
-        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+        [DllImport("user32.dll", SetLastError = true)] private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
+        private const uint _WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+
+        [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
         public struct RECT
         {
             public int Left;
@@ -20,24 +20,68 @@ namespace Frank
         }
 
         private Calculation _calcul;
-        private Dictionary<IntPtr, Rectangle> _processCalc;
-        private Dictionary<IntPtr, Hide> _hideForms;
-        private HashSet<IntPtr> _pendingWindows;
+        private bool _excelFound = false;
+        private bool _snippingToolFound = false;
+        private bool _closing = false;
+
+        private Dictionary<IntPtr, Rectangle> _processCalc = new();
+        private Dictionary<IntPtr, Hide> _hideForms = new();
+        private HashSet<IntPtr> _pendingWindows = new();
+        private List<ProcessWatcher> _watchers;
+
+        private Taskmanager _taskmanager;
 
         public Lydia()
         {
             InitializeComponent();
             this._calcul = new Calculation();
             this.tbCalcul.AutoSize = false;
-            this._processCalc = new Dictionary<IntPtr, Rectangle>();
-            this._hideForms = new Dictionary<IntPtr, Hide>();
-            this._pendingWindows = new HashSet<IntPtr>();
+
+            this._watchers = new List<ProcessWatcher>
+            {
+                new ProcessWatcher("CalculatorApp",
+                    onFound: (hWnd, bounds) => {
+                        var hideForm = new Hide(bounds);
+                        this._hideForms[hWnd] = hideForm;
+                        hideForm.Show();
+                        this.BringToFront();
+                    },
+                    onLost: (hWnd) => {
+                        if (this._hideForms.TryGetValue(hWnd, out var f))
+                        {
+                            f.Close();
+                            this._hideForms.Remove(hWnd);
+                        }
+                    }
+                ),
+                new ProcessWatcher("excel",
+                    onFound: (hWnd, bounds) => this._excelFound = true,
+                    onLost: (hWnd) => {}
+                ),
+                new ProcessWatcher("SnippingTool",
+                    onFound: (hWnd, bounds) => this._snippingToolFound = true,
+                    onLost: (hWnd) => {}
+                ),
+                new ProcessWatcher("ScreenClippingHost",
+                    onFound: (hWnd, bounds) => this._snippingToolFound = true,
+                    onLost: (hWnd) => {}
+                ),
+                new ProcessWatcher("SnipAndSketch",
+                    onFound: (hWnd, bounds) => this._snippingToolFound = true,
+                    onLost: (hWnd) => {}
+                )
+            };
+
+            this._taskmanager = new Taskmanager();
         }
 
-        private void Jeanne_Load(object sender, EventArgs e)
+        private void Lydia_Load(object sender, EventArgs e)
         {
             this.tbCalcul.Text = this._calcul.Generate();
             this.AutoResizeTextBox(this.tbCalcul);
+
+            this.CenterToScreen();
+
             Debug.WriteLine(this.tbCalcul.Text);
             Debug.WriteLine(this._calcul.GetResult());
         }
@@ -88,20 +132,34 @@ namespace Frank
 
         private void btnValidate_Click(object sender, EventArgs e)
         {
+            if (this._excelFound)
+            {
+                this.lblInfo.Text = "Excel à été ouvert --> nouvelle formule";
+                this.tbCalcul.Text = this._calcul.Generate();
+                Debug.WriteLine(this.tbCalcul.Text);
+                Debug.WriteLine(this._calcul.GetResult());
+                
+                // Resets
+                this._excelFound = false;
+                this._snippingToolFound = false;
+                return;
+            }
+
             if (this.IsInvalidInput(this.tbUser.Text))
             {
-                MessageBox.Show("Caractère invalide");
+                this.lblInfo.Text = "Caractère invalide.";
                 return;
             }
 
             if (this._calcul.CheckResult(decimal.Parse(this.tbUser.Text)))
             {
-                MessageBox.Show("Bravo");
+                MessageBox.Show("C'est le bon résultat, tu es libre.");
+                this._closing = true;
                 this.Close();
             }
             else
             {
-                MessageBox.Show("Loser");
+                this.lblInfo.Text = "Mauvais résultat, recommence.";
             }
         }
 
@@ -111,13 +169,19 @@ namespace Frank
             {
                 btnValidate.PerformClick();
             }
+
+            if (e.Control && e.KeyCode == Keys.V)
+            {
+                this.tbUser.Text = "Oukilé le texte ?";
+                e.SuppressKeyPress = true;
+            }
         }
 
         private void tbCalcul_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Control && e.KeyCode == Keys.C)
             {
-                Clipboard.SetText("Et non tu ne pensais pas que ça serait si simple quand même :)");
+                Clipboard.SetText("Tu ne pensais pas que ça serait si simple quand même :)");
                 e.SuppressKeyPress = true;
             }
         }
@@ -134,70 +198,65 @@ namespace Frank
 
         private void timerSpy_Tick(object sender, EventArgs e)
         {
-            var tasks = new List<Task>();
-            var windows = ProcessUtils.GetAllWindows("CalculatorApp");
-
-            foreach (var hWnd in windows)
+            // Gestionnaire des tâches
+            this._taskmanager.Monitor();
+            if (this._taskmanager.Acknowledge)
             {
-                if (!this._processCalc.ContainsKey(hWnd) && !this._pendingWindows.Contains(hWnd))
+                this.lblInfo.Text = "Un gestionnaire des tâches...\nTu pensais que je le verrais pas ?";
+                this._taskmanager.Acknowledge = false;
+            }
+
+            // Snipping Tool
+            if (this._snippingToolFound) this.lblInfo.Text = "Et non, pas de Google Lens pour aujourd'hui";
+
+            // Calculatrice
+            foreach (var watcher in this._watchers)
+            {
+                var windows = ProcessUtils.GetAllWindows(watcher.ProcessName);
+
+                foreach (var hWnd in windows)
                 {
-                    this._pendingWindows.Add(hWnd);
-                    tasks.Add(Task.Run(async () =>
+                    if (!this._processCalc.ContainsKey(hWnd) && !this._pendingWindows.Contains(hWnd))
                     {
-                        Rectangle previous = ProcessUtils.GetBounds(hWnd);
-                        Rectangle bounds = previous;
-                        int retries = 20;
-                        while (bounds == previous && retries-- > 0)
+                        this._pendingWindows.Add(hWnd);
+                        Task.Run(async () =>
                         {
-                            await Task.Delay(500);
-                            bounds = ProcessUtils.GetBounds(hWnd);
-                        }
-                        this.Invoke(() =>
-                        {
-                            this._processCalc[hWnd] = bounds;
-                            this._pendingWindows.Remove(hWnd);
-                            HideProcess();
+                            Rectangle previous = ProcessUtils.GetBounds(hWnd);
+                            Rectangle bounds = previous;
+                            int retries = 20;
+                            while (bounds == previous && retries-- > 0)
+                            {
+                                await Task.Delay(500);
+                                bounds = ProcessUtils.GetBounds(hWnd);
+                            }
+                            this.Invoke(() =>
+                            {
+                                this._processCalc[hWnd] = bounds;
+                                this._pendingWindows.Remove(hWnd);
+                                watcher.OnWindowFound(hWnd, bounds);
+                            });
                         });
-                    }));
+                    }
                 }
-            }
 
-            var alivePids = Process.GetProcessesByName("CalculatorApp").Select(p => p.Id).ToHashSet();
+                var alivePids = Process.GetProcessesByName(watcher.ProcessName)
+                                       .Select(p => p.Id).ToHashSet();
 
-            var closed = this._processCalc.Keys
-                .Where(h =>
+                var closed = this._processCalc.Keys
+                    .Where(h =>
+                    {
+                        ProcessUtils.GetWindowThreadProcessId(h, out uint pid);
+                        return !alivePids.Contains((int)pid);
+                    }).ToList();
+
+                if (closed.Any())
                 {
-                    ProcessUtils.GetWindowThreadProcessId(h, out uint pid);
-                    return !alivePids.Contains((int)pid);
-                }).ToList();
-
-            if (closed.Any())
-            {
-                closed.ForEach(h => this._processCalc.Remove(h));
-                this.ClearHideProcess();
-            }
-        }
-
-        private void HideProcess()
-        {
-            foreach (var (hWnd, rect) in this._processCalc)
-            {
-                if (!this._hideForms.ContainsKey(hWnd))
-                {
-                    var hideForm = new Hide(rect);
-                    this._hideForms[hWnd] = hideForm;
-                    hideForm.Show();
+                    closed.ForEach(h =>
+                    {
+                        this._processCalc.Remove(h);
+                        watcher.OnWindowLost(h);
+                    });
                 }
-            }
-        }
-
-        private void ClearHideProcess()
-        {
-            var toClose = this._hideForms.Keys.Where(h => !_processCalc.ContainsKey(h)).ToList();
-            foreach (var hWnd in toClose)
-            {
-                this._hideForms[hWnd].Close();
-                this._hideForms.Remove(hWnd);
             }
         }
 
@@ -212,6 +271,41 @@ namespace Frank
                     hideForm.SetSize(bounds.Width, bounds.Height);
                 }
             }
+        }
+
+        private void Lydia_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (e.CloseReason == CloseReason.WindowsShutDown) return;
+
+            if (!this._closing)
+            {
+                this.lblInfo.Text = "Vraiment ?\nTu pensais juste pouvoir quitter comme ça ?";
+                e.Cancel = true;
+            }
+        }
+
+        private void Lydia_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            if (this._closing) Application.ExitThread();
+        }
+
+        // Empêche le déplacement de la fenêtre
+        protected override void WndProc(ref Message m)
+        {
+            const int WM_NCLBUTTONDOWN = 0x00A1;
+            const int HTCAPTION = 0x2;
+
+            if (m.Msg == WM_NCLBUTTONDOWN && (int)m.WParam == HTCAPTION)
+                return;
+
+            base.WndProc(ref m);
+        }
+
+        // Empêche la capture d'écran
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            SetWindowDisplayAffinity(this.Handle, _WDA_EXCLUDEFROMCAPTURE);
         }
     }
 }

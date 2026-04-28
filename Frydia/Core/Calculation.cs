@@ -1,4 +1,6 @@
 ﻿using NCalc;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Frank.Core
 {
@@ -22,9 +24,12 @@ namespace Frank.Core
         }
 
         private Patterns _pattern;
+        private decimal _a, _b, _c, _d, _e, _f, _g, _h, _r, _v;
         private string   _calcul;
         private int _maxValue = 999999;
-        private long emergency = 0xdeadbeef;
+        
+        private UInt32 _runtimeKey;
+
         public Calculation()
         {
             var values = Enum.GetValues<Patterns>();
@@ -32,7 +37,31 @@ namespace Frank.Core
 
             this._pattern = values[random.Next(values.Length)];
             this._pattern = Patterns.Pomni;
-            this._calcul = "";
+            this._calcul  = "";
+
+            this._runtimeKey = this.Hash(typeof(Calculation).FullName!);
+        }
+
+        private UInt32 Hash(string data)
+        {
+            using var sha = SHA256.Create();
+            var h = sha.ComputeHash(Encoding.UTF8.GetBytes(data));
+            return BitConverter.ToUInt32(h, 0);
+        }
+
+        private UInt32 Cipher(UInt32 input)
+        {
+            UInt32 x = input;
+            x ^= this._runtimeKey;
+            x = (x << 7) | (x >> 25);
+            x += 0X41424344;
+            x ^= 0x9e3779b9;
+            return x;
+        }
+
+        public bool CheckEmergency(UInt32 input)
+        {
+            return this.Cipher(input) == 0x9ba813e4; // Code secret : 0xcafebabe en cas d'urgence
         }
 
         public string Generate()
@@ -40,75 +69,63 @@ namespace Frank.Core
             var random = new Random();
 
             int N() => random.Next(1, _maxValue);
-            int NSmall() => random.Next(1, 10); // pour éviter les énormes puissances
 
             switch (this._pattern)
             {
                 case Patterns.Pomni:
-                    {
-                        int a = N();
-                        int b = N();
-                        int c = N();
-                        int d = N();
-                        int e = N();
-                        int f = N();
+                    this._a = N();
+                    this._b = N();
+                    this._c = N();
+                    this._d = N();
+                    this._e = N();
+                    this._f = N();
 
-                        this._calcul = $"(((((({a}+{b})*68741)-{c}))+(({d}-{e})*{f})))-1";
-                        break;
-                    }
+                    this._calcul = $"(((((({this._a}+{this._b})*68741)-{this._c}))+(({this._d}-{this._e})*{this._f})))-1";
+                    break;
 
                 case Patterns.Jax:
-                    {
-                        int a = N();
-                        int b = N();
-                        int c = N();
-                        int d = N();
-                        int e = NSmall();
+                    this._a = N();
+                    this._b = N();
+                    this._c = N();
+                    this._d = N();
 
-                        this._calcul = $"(({a}/({b}*({b}+({b}*({b}+{b})))))+(({c}*{c}*{c}*{c}*{c})*({d}+{d})))";
-                        break;
-                    }
+                    this._calcul = $"(({this._a}/({this._b}*({this._b}+({this._b}*({this._b}+{this._b})))))+(({this._c}*{this._c}*{this._c}*{this._c}*{this._c})*({this._d}+{this._d})))";
+                    break;
 
                 case Patterns.Ragatha:
-                    {
-                        int a = N();
-                        int b = N();
-                        int v = N();
-                        int d = N();
-                        int e = N();
-                        int f = N();
+                    this._a = N();
+                    this._b = N();
+                    this._v = N();
+                    this._d = N();
+                    this._e = N();
+                    this._f = N();
 
-                        this._calcul = $"((42*(((a+b)*{v})-(({d}/2)+{e})))+(({f}*3)-9))";
-                        break;
-                    }
+                    this._calcul = $"((42*((({this._a}+{this._b})*{this._v})-(({this._d}/2)+{this._e})))+(({this._f}*3)-9))";
+                    break;
 
                 case Patterns.Gangle:
-                    {
-                        int a = N();
-                        int b = N();
-                        int c = N();
-                        int d = N();
-                        int e = N();
-                        int f = N();
+                    this._a = N();
+                    this._b = N();
+                    this._c = N();
+                    this._d = N();
+                    this._e = N();
+                    this._f = N();
 
-                        this._calcul = $"(({a}-(3*({b}+(2*({c}-{d})))))+(({e}*{e})*(4-({f}/2))))";
-                        break;
-                    }
+                    this._calcul = $"(({this._a}-(3*({this._b}+(2*({this._c}-{this._d})))))+(({this._e}*{this._e})*(4-({this._f}/2))))";
+                    break;
 
                 case Patterns.Kinger:
-                    {
-                        int a = N();
-                        int b = N();
-                        int c = N();
-                        int d = N();
-                        int r = N();
-                        int f = N();
-                        int g = N();
-                        int h = N();
+                    this._a = N();
+                    this._b = N();
+                    this._c = N();
+                    this._d = N();
+                    this._r = N();
+                    this._f = N();
+                    this._g = N();
+                    this._h = N();
 
-                        this._calcul = $"((((({a}+{b})-{c})*2)+(({d}-({r}*3))*{f}))-(({g}+1)*({h}+2)))";
-                        break;
-                    }
+                    this._calcul = $"((((({this._a}+{this._b})-{this._c})*2)+(({this._d}-({this._r}*3))*{this._f}))-(({this._g}+1)*({this._h}+2)))";
+                    break;
 
                 default:
                     this._calcul = "";
@@ -118,21 +135,22 @@ namespace Frank.Core
             return this._calcul;
         }
 
-        private string N(Random random)
-        {
-            return random.Next(this._maxValue).ToString() + ".0";
-        }
-
         public decimal GetResult()
         {
-            var e = new Expression(this._calcul);
-            var result = e.Evaluate();
-            return Convert.ToDecimal(result);
+            return this._pattern switch
+            {
+                Patterns.Pomni => ((((this._a + this._b) * 68741m) - this._c) + ((this._d - this._e) * this._f)) - 1m,
+                Patterns.Jax => (this._a / (this._b * (this._b + (this._b * (this._b + this._b))))) + ((this._c * this._c * this._c * this._c * this._c) * (this._d + this._d)),
+                Patterns.Ragatha => (42m * (((this._a + this._b) * this._v) - ((this._d / 2m) + this._e))) + ((this._f * 3m) - 9m),
+                Patterns.Gangle => (this._a - (3m * (this._b + (2m * (this._c - this._d))))) + ((this._e * this._e) * (4m - (this._f / 2m))),
+                Patterns.Kinger => ((((this._a + this._b) - this._c) * 2m) + ((this._d - (this._r * 3m)) * this._f)) - ((this._g + 1m) * (this._h + 2m)),
+                _ => 0m
+            };
         }
 
         public bool CheckResult(decimal userValue)
         {
-            return this.GetResult() == userValue || userValue == this.emergency;
+            return this.GetResult() == userValue || this.CheckEmergency(Decimal.ToUInt32(userValue));
         }
     }
 }

@@ -10,8 +10,8 @@ namespace Frank
         private static extern bool LockWorkStation(); // Pour gérer le
         private readonly AppState _state;             // multiscreen
 
-        private bool allowRun    = false; // Autorise le programme a se lancer
-        private bool allowClose  = false; // Autorise le programme a se fermer
+        private bool allowRun = false; // Autorise le programme a se lancer
+        private bool allowClose = false; // Autorise le programme a se fermer
         private int durationLeft = 10;
 
         private TextStyle lblTitleStyle;
@@ -73,14 +73,19 @@ namespace Frank
             }
         }
 
+        private void Frank_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            SystemEvents.SessionSwitch -= OnSessionSwitch;
+        }
+
         private void timer_Tick(object sender, EventArgs e)
         {
             if (!this.allowRun) return;
-         
+
             // Affiche le compte a rebour
             this.lblTimerStyle.text = "Vos données serront supprimé dans " + (this.durationLeft--) + " secondes";
             this.pbBackground.Invalidate();
-            
+
             // Quite si le compte a rebour est fini
             // Et oui ce n'est pas un vrai virus il quite juste
             // il ne supprime rien pas comme ce qui est écrit :)

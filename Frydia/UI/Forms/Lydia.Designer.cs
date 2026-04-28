@@ -35,6 +35,7 @@
             tbCalcul = new TextBox();
             timerSpy = new System.Windows.Forms.Timer(components);
             timerMove = new System.Windows.Forms.Timer(components);
+            lblInfo = new Label();
             SuspendLayout();
             // 
             // tbUser
@@ -86,18 +87,33 @@
             timerMove.Enabled = true;
             timerMove.Tick += timerMove_Tick;
             // 
+            // lblInfo
+            // 
+            lblInfo.AutoSize = true;
+            lblInfo.Location = new Point(284, 328);
+            lblInfo.Name = "lblInfo";
+            lblInfo.Size = new Size(28, 15);
+            lblInfo.TabIndex = 5;
+            lblInfo.Text = "Info";
+            // 
             // Lydia
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(lblInfo);
             Controls.Add(tbCalcul);
             Controls.Add(btnValidate);
             Controls.Add(lblTitle);
             Controls.Add(tbUser);
+            FormBorderStyle = FormBorderStyle.FixedToolWindow;
             Name = "Lydia";
+            ShowInTaskbar = false;
             Text = "Lydia";
-            Load += Jeanne_Load;
+            TopMost = true;
+            FormClosing += Lydia_FormClosing;
+            FormClosed += Lydia_FormClosed;
+            Load += Lydia_Load;
             ResumeLayout(false);
             PerformLayout();
         }
@@ -110,5 +126,6 @@
         private TextBox tbCalcul;
         private System.Windows.Forms.Timer timerSpy;
         private System.Windows.Forms.Timer timerMove;
+        private Label lblInfo;
     }
 }

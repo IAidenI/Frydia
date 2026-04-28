@@ -18,10 +18,10 @@ namespace Frank
             // see https://aka.ms/applicationconfiguration.
             Application.SetHighDpiMode(HighDpiMode.PerMonitor);
             ApplicationConfiguration.Initialize();
-            Application.Run(new Lydia());
+            //Application.Run(new Lydia());
 
             // Gère le multiscreen
-            /*var state = new AppState();
+            var state = new AppState();
             foreach (var screen in Screen.AllScreens)
             {
                 // Sur chaques fenêtre on crée une nouvelle instance de Frank
@@ -32,7 +32,7 @@ namespace Frank
                 OpenForms.Add(form); // Ajoute un historique des fenêtres ouvertes
                 form.Show();
             }
-            Application.Run(); // lance l'application*/
+            Application.Run(); // lance l'application
         }
 
         public static void CleanCloseAll()
@@ -42,7 +42,7 @@ namespace Frank
 
             Keyboard.EnableKeyboard();
 
-            foreach(var form in OpenForms)
+            foreach (var form in OpenForms.ToList())
             {
                 // Cache la fenêtre parent et stop les timers
                 form.Hide();
@@ -55,7 +55,18 @@ namespace Frank
             // Affiche un petit message
             MessageBox.Show(primaryForm, "T'as de la chance cette fois ci, c'était pas un vrai virus...\n\nLa prochaine fois pense a verrouiller ton pc :)", "ATTENTION", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-            Application.Exit(); // Quite le programme
+            // Donne la main a Lydia
+            // Doit être fait avant de fermer Frank
+            // car sinon l'application risque de se fermer
+            var lydia = new Lydia();
+            lydia.Show();
+
+            foreach (var form in OpenForms.ToList())
+            {
+                form.Close(); // Ferme Frank sur tout les écrans
+            }
+
+            _isClosing = false;
         }
     }
 }

@@ -77,6 +77,7 @@
             TopMost = true;
             WindowState = FormWindowState.Maximized;
             FormClosing += Frank_FormClosing;
+            FormClosed += Frank_FormClosed;
             ((System.ComponentModel.ISupportInitialize)pbBackground).EndInit();
             ResumeLayout(false);
         }
