@@ -42,8 +42,14 @@ Frank est la pour mettre la pression à l'utilisateur, tandis que Lydia intervie
 
 ```powershell
 git clone https://github.com/IAidenI/Frydia.git
-cd .\Frydia
+cd .\Frydia\install
 .\build.bat
+# Les binaires se trouveront dans .\bin
+# Le binaire Frydia est prêt a l'emploit
+# Mais pour faire une installation complète
+.\bin\setup.exe
+# Cela permet de rendre le le projet persistant
+# et peut se lancer depuis n'importe où avec : CTRL + ALT + SHIFT + F12
 ```
 
 ## Architecture
@@ -62,3 +68,4 @@ cd .\Frydia
 - [ ] Simplifier et améliorer `TextStyle` dans `Frank`
 - [ ] Refactoriser `ProcessWatcher`
 - [ ] Ajouter des commentaires
+csc /target:winexe launcher.cs
